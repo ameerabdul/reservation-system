@@ -1,6 +1,7 @@
 package com.upgrade.www.reservation.controller;
 
 import com.upgrade.www.reservation.exceptions.InvalidInputException;
+import com.upgrade.www.reservation.exceptions.ReservationException;
 import com.upgrade.www.reservation.models.common.DateRange;
 import com.upgrade.www.reservation.models.dbo.BookingDetail;
 import com.upgrade.www.reservation.models.input.CancellationRequest;
@@ -105,6 +106,9 @@ public class ReservationController {
         } catch (InvalidInputException exception) {
             response.setStatus(HttpStatus.BAD_REQUEST.value());
             return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
+        } catch (ReservationException exception) {
+            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
         }
     }
 
@@ -153,6 +157,9 @@ public class ReservationController {
             }
         } catch (InvalidInputException exception) {
             response.setStatus(HttpStatus.BAD_REQUEST.value());
+            return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
+        } catch (ReservationException exception) {
+            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
             return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
         }
     }

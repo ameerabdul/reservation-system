@@ -1,15 +1,17 @@
 package com.upgrade.www.reservation.repository;
 
+import com.upgrade.www.reservation.exceptions.ReservationException;
+import com.upgrade.www.reservation.models.common.BookingStatus;
 import com.upgrade.www.reservation.models.common.DateRange;
 import com.upgrade.www.reservation.models.dbo.BookingDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Mock api to represent a booking database api
@@ -20,41 +22,79 @@ public class BookingRepository {
     private final BookingCache bookingCache;
 
     // Mock list to represent database table for booking records
-    private final List<BookingDetail> bookingRecords;
+    private final Map<String, BookingDetail> bookingRecords;
     // Mock Set to represent database table for booked dates
+    // Can be expanded to Map to keep track of booking dates multiple campsites in future
     private final Set<LocalDate> bookedDates;
 
     @Autowired
     public BookingRepository(BookingCache bookingCache) {
-        this.bookingRecords = new ArrayList<>();
+        this.bookingRecords = new ConcurrentHashMap<>();
         this.bookedDates = new HashSet<>();
         this.bookingCache = bookingCache;
     }
 
-    public BookingDetail completeBooking(String email, DateRange dateRange) {
+    public BookingDetail completeBooking(String email, DateRange dateRange) throws ReservationException {
 
+        BookingDetail booking;
+        // Synchronize to mimic atomic transaction
+        synchronized (this) {
+            final boolean isAvailable = isDateRangeAvailable(dateRange);
+            if (!isAvailable) {
+                throw new ReservationException("Camp site not available for the reserved dates");
+            }
+            booking = new BookingDetail(email, dateRange, BookingStatus.CONFIRMED);
+            bookingRecords.put(booking.getId(), booking);
+        }
+
+        // Doesn't need the cache update to be synchronized
         bookingCache.addBookedDates(dateRange);
-        return null;
+        return booking;
     }
 
-    public BookingDetail modifyBooking(BookingDetail existingBooking, DateRange newDateRange) {
+    public BookingDetail modifyBooking(BookingDetail existingBooking, DateRange newDateRange) throws ReservationException {
+
+        BookingDetail newBooking;
+        // Synchronize to mimic atomic transaction
+        synchronized (this) {
+            final boolean isAvailable = isDateRangeAvailable(newDateRange);
+            if (!isAvailable) {
+                throw new ReservationException("Camp site not available for the reserved dates");
+            }
+            newBooking = new BookingDetail(existingBooking.getEmail(), newDateRange, BookingStatus.CONFIRMED);
+            existingBooking.setStatus(BookingStatus.CANCELLED);
+            bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking
+            bookingRecords.put(newBooking.getId(), newBooking); // Creating new booking
+        }
 
         bookingCache.addBookedDates(newDateRange);
         bookingCache.removeBookedDates(new DateRange(existingBooking.getStartDate(), existingBooking.getEndDate()));
-        return null;
+        return newBooking;
     }
 
     public BookingDetail cancelBooking(BookingDetail existingBooking) {
+        // Synchronize to mimic atomic transaction
+        synchronized (this) {
+            existingBooking.setStatus(BookingStatus.CANCELLED);
+            bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking
+        }
 
         bookingCache.removeBookedDates(new DateRange(existingBooking.getStartDate(), existingBooking.getEndDate()));
-        return null;
+        return existingBooking;
+    }
+
+    public BookingDetail getBookingDetails(String bookingId, String email) {
+        return retrieveBookingDetails(bookingId, email);
     }
 
     // Mock method to retrieve booking details from database
-    public BookingDetail getBookingDetails(String bookingId, String email) {
-        return bookingRecords.stream()
-                .filter(booking -> booking.getId().equals(bookingId) && booking.getEmail().equals(email))
-                .findFirst().orElse(null);
+    private BookingDetail retrieveBookingDetails(String bookingId, String email) {
+        final BookingDetail booking = bookingRecords.get(bookingId);
+        if (booking != null && booking.getEmail().equals(email)) {
+            return booking;
+        } else {
+            return null;
+        }
     }
 
     // Mock method to check if dates are available in the database instead of cache before booking

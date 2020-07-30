@@ -1,6 +1,7 @@
 package com.upgrade.www.reservation.service;
 
 import com.upgrade.www.reservation.exceptions.InvalidInputException;
+import com.upgrade.www.reservation.exceptions.ReservationException;
 import com.upgrade.www.reservation.models.common.DateRange;
 import com.upgrade.www.reservation.models.dbo.BookingDetail;
 import com.upgrade.www.reservation.repository.BookingRepository;
@@ -25,12 +26,14 @@ public class BookingService {
         this.bookingRepository = bookingRepository;
     }
 
-    public BookingDetail completeBooking(String email, DateRange dateRange) throws InvalidInputException {
+    public BookingDetail completeBooking(String email, DateRange dateRange) throws InvalidInputException, ReservationException
+    {
         validateBookingDates(dateRange);
         return bookingRepository.completeBooking(email, dateRange);
     }
 
-    public BookingDetail modifyBooking(String bookingId, String email, DateRange newDateRange) throws InvalidInputException {
+    public BookingDetail modifyBooking(String bookingId, String email, DateRange newDateRange) throws InvalidInputException, ReservationException
+    {
         validateBookingDates(newDateRange);
         final BookingDetail existingBooking = bookingRepository.getBookingDetails(bookingId, email);
 

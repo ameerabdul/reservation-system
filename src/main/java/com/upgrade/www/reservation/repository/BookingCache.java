@@ -15,6 +15,7 @@ public class BookingCache {
     /* ConcurrentHashMap to keep the reads faster but the writes will block the threads
      * Can be switched out to a distributed caching system
      * Also async thread can be used to remove dates in the past from the cache
+     * Similarly we can expand the cache key to be a campsite id and date to support multiple sites
      */
     private final ConcurrentHashMap<LocalDate, Long> bookedDatesCache = new ConcurrentHashMap<>();
 
@@ -48,7 +49,7 @@ public class BookingCache {
     }
 
     /**
-     * Removed cancelled dates from the cache asynchronously
+     * Remove cancelled dates from the cache asynchronously
      * Async due to the cache update need not be transactional update change booking
      * @param dateRange cancelled date range
      */
