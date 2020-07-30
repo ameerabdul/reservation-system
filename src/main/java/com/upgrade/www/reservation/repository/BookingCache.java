@@ -37,28 +37,24 @@ public class BookingCache {
     /**
      * Add booked dates to the cache asynchronously
      * Async due to the cache update need not be transactional update as part of booking
-     * @param dateRange booked date range
+     * @param stayDates booked date range
      */
     @Async
-    public void addBookedDates(DateRange dateRange) {
-        LocalDate date = dateRange.getStartDate();
-        while (date.isBefore(dateRange.getEndDate())) {
+    public void addBookedDates(List<LocalDate> stayDates) {
+        for (LocalDate date : stayDates) {
             bookedDatesCache.put(date, System.currentTimeMillis());
-            date = date.plusDays(1);
         }
     }
 
     /**
      * Remove cancelled dates from the cache asynchronously
      * Async due to the cache update need not be transactional update change booking
-     * @param dateRange cancelled date range
+     * @param stayDates cancelled date range
      */
     @Async
-    public void removeBookedDates(DateRange dateRange) {
-        LocalDate date = dateRange.getStartDate();
-        while (date.isBefore(dateRange.getEndDate())) {
+    public void removeBookedDates(List<LocalDate> stayDates) {
+        for (LocalDate date : stayDates) {
             bookedDatesCache.remove(date);
-            date = date.plusDays(1);
         }
     }
 }
