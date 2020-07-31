@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Mock api to represent a booking database api
+ * Opted for mocked list to keep things simple, however would loose the reservation information if restart the server.
  */
 @Repository
 public class BookingRepository {
@@ -44,7 +45,7 @@ public class BookingRepository {
         synchronized (this) {
             final boolean isAvailable = isDateRangeAvailable(dateRange);
             if (!isAvailable) {
-                throw new ReservationException("Camp site not available for the reserved dates");
+                throw new ReservationException("Camp site not available for the selected dates");
             }
             booking = new BookingDetail(email, dateRange, BookingStatus.CONFIRMED);
             bookingRecords.put(booking.getId(), booking);
@@ -65,7 +66,7 @@ public class BookingRepository {
         synchronized (this) {
             final boolean isAvailable = isDateRangeAvailable(newDateRange);
             if (!isAvailable) {
-                throw new ReservationException("Camp site not available for the reserved dates");
+                throw new ReservationException("Camp site not available for the selected dates");
             }
             newBooking = new BookingDetail(existingBooking.getEmail(), newDateRange, BookingStatus.CONFIRMED);
             existingBooking.setStatus(BookingStatus.CANCELLED);

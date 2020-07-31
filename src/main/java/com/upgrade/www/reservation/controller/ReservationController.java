@@ -92,6 +92,7 @@ public class ReservationController {
             HttpServletResponse response
     ) {
         try {
+            validateReservationParameters(reservationRequest.getEmail(), reservationRequest.getFirstName(), reservationRequest.getLastName());
             final DateRange dateRange = parseDateRange(reservationRequest.getStartDate(), reservationRequest.getEndDate());
             final BookingDetail bookingDetail = bookingService.completeBooking(reservationRequest.getEmail(), dateRange);
             if (bookingDetail == null) {
@@ -136,6 +137,10 @@ public class ReservationController {
         }
     }
 
+    /**
+     * reservationUpdateRequest: Assuming we can only modify booking dates but not email or names
+     * @return Reservation response
+     */
     @RequestMapping(value = "/modifyReservation", method = RequestMethod.POST)
     @ResponseBody
     public ReservationResponse modifyReservation(
@@ -185,6 +190,13 @@ public class ReservationController {
     private void validateBookingInformation(String bookingId, String email) throws InvalidInputException {
         if (StringUtils.isEmpty(bookingId) || StringUtils.isEmpty(email)) {
             throw new InvalidInputException("Need a valid booking id and email");
+        }
+    }
+
+    private void validateReservationParameters(String email, String firstName, String lastName) throws InvalidInputException {
+        // Ignoring valid email pattern
+        if (StringUtils.isEmpty(email) || StringUtils.isEmpty(firstName) || StringUtils.isEmpty(lastName)) {
+            throw new InvalidInputException("Need a valid email, firstName and lastName for a booking");
         }
     }
 }

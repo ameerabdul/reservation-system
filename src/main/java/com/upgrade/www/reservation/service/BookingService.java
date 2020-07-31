@@ -2,6 +2,7 @@ package com.upgrade.www.reservation.service;
 
 import com.upgrade.www.reservation.exceptions.InvalidInputException;
 import com.upgrade.www.reservation.exceptions.ReservationException;
+import com.upgrade.www.reservation.models.common.BookingStatus;
 import com.upgrade.www.reservation.models.common.DateRange;
 import com.upgrade.www.reservation.models.dbo.BookingDetail;
 import com.upgrade.www.reservation.repository.BookingRepository;
@@ -49,6 +50,8 @@ public class BookingService {
 
         if (existingBooking == null) {
             throw new InvalidInputException("No booking details for the booking id and email provided");
+        } else if (existingBooking.getStatus() == BookingStatus.CANCELLED) {
+            return existingBooking;
         }
 
         return bookingRepository.cancelBooking(existingBooking);
@@ -62,7 +65,8 @@ public class BookingService {
         final boolean isValidDate = dateValidator.validateBookingDates(dateRange, CAMPSITE_TIMEZONE);
 
         if (!isValidDate) {
-            throw new InvalidInputException("Invalid date range for booking. Should be at least one day prior to today and within a month");
+            throw new InvalidInputException("Invalid date range for booking. Should be at least one day prior to today " +
+                    "and within a month for a max stay of 3 nights");
         }
     }
 }
