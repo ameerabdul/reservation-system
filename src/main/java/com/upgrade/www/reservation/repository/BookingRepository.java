@@ -17,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Mock api to represent a booking database api
- * Opted for mocked list to keep things simple, however this would loose the reservation information if restart the server.
+ * Opted for mocked list to keep things simple, however this would loose the reservation information the server was restarted.
+ * Conceptually the collections `bookingRecords` and `bookedDates` should be tables in the database.
  */
 @Repository
 public class BookingRepository {
@@ -49,11 +50,11 @@ public class BookingRepository {
                 throw new ReservationException("Camp site not available for the selected dates");
             }
             booking = new BookingDetail(email, dateRange, BookingStatus.CONFIRMED);
-            bookingRecords.put(booking.getId(), booking);
-            addBookedDates(stayDates);
+            bookingRecords.put(booking.getId(), booking); // Creating new booking database record
+            addBookedDates(stayDates); // Update database records with booked dates
         }
 
-        // Doesn't need the cache update to be synchronized
+        // Cache update need not be atomic and synchronized, thereby releasing the thread lock faster
         bookingCache.addBookedDates(stayDates);
         return booking;
     }
@@ -72,12 +73,13 @@ public class BookingRepository {
             }
             newBooking = new BookingDetail(existingBooking.getEmail(), newDateRange, BookingStatus.CONFIRMED);
             existingBooking.setStatus(BookingStatus.CANCELLED);
-            bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking
-            bookingRecords.put(newBooking.getId(), newBooking); // Creating new booking
-            removeBookedDates(oldStayDates);
-            addBookedDates(newStayDates);
+            bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking database record
+            bookingRecords.put(newBooking.getId(), newBooking); // Creating new booking database record
+            removeBookedDates(oldStayDates); // Update database records with cancelled dates
+            addBookedDates(newStayDates); // Update database records with booked dates
         }
 
+        // Cache update need not be atomic and synchronized, thereby releasing the thread lock faster
         bookingCache.addBookedDates(newStayDates);
         bookingCache.removeBookedDates(oldStayDates);
         return newBooking;
@@ -89,10 +91,11 @@ public class BookingRepository {
         // Synchronize to mimic atomic transaction for a database
         synchronized (this) {
             existingBooking.setStatus(BookingStatus.CANCELLED);
-            bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking
-            removeBookedDates(stayDates);
+            bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking database record
+            removeBookedDates(stayDates); // Update database records with cancelled dates
         }
 
+        // Cache update need not be atomic and synchronized, thereby releasing the thread lock faster
         bookingCache.removeBookedDates(stayDates);
         return existingBooking;
     }
@@ -119,7 +122,7 @@ public class BookingRepository {
         bookedDates.removeAll(stayDates);
     }
 
-    // Mock method to check if dates are available in the database instead of cache before booking
+    // Method to check if dates are available in the database instead of cache before booking
     private boolean isDateRangeAvailable(DateRange dateRange) {
         LocalDate date = dateRange.getStartDate();
 

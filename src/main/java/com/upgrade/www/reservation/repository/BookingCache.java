@@ -9,12 +9,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Cache which gets updated Async whenever bookings are done. Provides faster lookup of availability for users.
+ * Cache can be slightly stale as it is only used to check availability
+ * All booking confirmations read the database records to confirm availability
+ */
 @Component
 public class BookingCache {
 
     /* ConcurrentHashMap to keep the reads faster but the writes will block the threads
-     * Can be switched out to a distributed caching system
-     * Also async thread can be used to remove dates in the past from the cache
+     * Can be switched out to an external distributed caching system for faster availability checks
+     * Async thread can be used to remove dates in the past from the cache
      * Similarly we can expand the cache key to be a campsite id and date to support multiple sites
      */
     private final ConcurrentHashMap<String, LocalDate> bookedDatesCache = new ConcurrentHashMap<>();
@@ -36,7 +41,7 @@ public class BookingCache {
 
     /**
      * Add booked dates to the cache asynchronously
-     * Async due to the cache update need not be transactional update as part of booking
+     * Async as the cache update need not be transactional update as part of booking
      * @param stayDates booked date range
      */
     @Async
