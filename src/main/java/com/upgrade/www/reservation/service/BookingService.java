@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 public class BookingService {
@@ -33,7 +34,7 @@ public class BookingService {
         return bookingRepository.completeBooking(email, dateRange);
     }
 
-    public BookingDetail modifyBooking(String bookingId, String email, DateRange newDateRange) throws InvalidInputException, ReservationException
+    public List<BookingDetail> modifyBooking(String bookingId, String email, DateRange newDateRange) throws InvalidInputException, ReservationException
     {
         validateBookingDates(newDateRange);
         final BookingDetail existingBooking = bookingRepository.getBookingDetails(bookingId, email);
@@ -42,7 +43,8 @@ public class BookingService {
             throw new InvalidInputException("No booking details for the booking id and email provided");
         }
 
-        return bookingRepository.modifyBooking(existingBooking, newDateRange);
+        final BookingDetail modifiedBooking = bookingRepository.modifyBooking(existingBooking, newDateRange);
+        return List.of(existingBooking, modifiedBooking);
     }
 
     public BookingDetail cancelBooking(String bookingId, String email) throws InvalidInputException {

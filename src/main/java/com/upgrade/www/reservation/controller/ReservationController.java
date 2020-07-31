@@ -29,6 +29,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 
 @RestController
 @RequestMapping(value = "/", produces = "application/json")
@@ -43,6 +44,12 @@ public class ReservationController {
         this.bookingService = bookingService;
     }
 
+    /**
+     * @param startDate startDate for the availability info
+     * @param endDate endDate for the availability info
+     * Defaults to a month from tomorrow for availability
+     * @return Returns available dates for the campsite
+     */
     @RequestMapping(value = "/getAvailability", method = RequestMethod.GET)
     @ResponseBody
     public AvailabilityDetailsResponse getAvailability(
@@ -60,6 +67,11 @@ public class ReservationController {
         }
     }
 
+    /**
+     * @param bookingId id for the reservation
+     * @param email email id used for the reservation
+     * @return ReservationResponse details about the reservation if found or error
+     */
     @RequestMapping(value = "/getReservation", method = RequestMethod.GET)
     @ResponseBody
     public ReservationResponse getReservation(
@@ -85,6 +97,11 @@ public class ReservationController {
         }
     }
 
+    /**
+     *
+     * @param reservationRequest with email id, name and stay range
+     * @return ReservationResponse successful booking details or error incase of no availability
+     */
     @RequestMapping(value = "/makeReservation", method = RequestMethod.POST)
     @ResponseBody
     public ReservationResponse makeReservation(
@@ -95,15 +112,21 @@ public class ReservationController {
             validateReservationParameters(reservationRequest.getEmail(), reservationRequest.getFirstName(), reservationRequest.getLastName());
             final DateRange dateRange = parseDateRange(reservationRequest.getStartDate(), reservationRequest.getEndDate());
             final BookingDetail bookingDetail = bookingService.completeBooking(reservationRequest.getEmail(), dateRange);
+
+            ReservationResponse reservationResponse;
             if (bookingDetail == null) {
                 response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-                return new ReservationResponse(emptyList(), List.of("Unable to finish the booking please try again"));
+
+                reservationResponse = new ReservationResponse(emptyList(), List.of("Unable to finish the booking please try again"));
             } else {
                 final List<ReservationDetail> details = List.of(
                         new ReservationDetail(bookingDetail.getId(), bookingDetail.getEmail(), bookingDetail.getStatus().name(), bookingDetail.getStartDate(), bookingDetail.getEndDate())
                 );
-                return new ReservationResponse(details, emptyList());
+
+                reservationResponse = new ReservationResponse(details, emptyList());
             }
+
+            return reservationResponse;
         } catch (InvalidInputException exception) {
             response.setStatus(HttpStatus.BAD_REQUEST.value());
             return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
@@ -113,6 +136,10 @@ public class ReservationController {
         }
     }
 
+    /**
+     * @param cancellationRequest with booking id and corresponding email id
+     * @return ReservationResponse with cancellation details if successful or error in case no booking is found.
+     */
     @RequestMapping(value = "/cancelReservation", method = RequestMethod.PUT)
     @ResponseBody
     public ReservationResponse cancelReservation(
@@ -122,15 +149,19 @@ public class ReservationController {
         try {
             validateBookingInformation(cancellationRequest.getBookingId(), cancellationRequest.getEmail());
             final BookingDetail bookingDetail = bookingService.cancelBooking(cancellationRequest.getBookingId(), cancellationRequest.getEmail());
+
+            ReservationResponse reservationResponse;
             if (bookingDetail == null) {
                 response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-                return new ReservationResponse(emptyList(), List.of("Unable to cancel the booking please try again"));
+                reservationResponse = new ReservationResponse(emptyList(), List.of("Unable to cancel the booking please try again"));
             } else {
                 final List<ReservationDetail> details = List.of(
                         new ReservationDetail(bookingDetail.getId(), bookingDetail.getEmail(), bookingDetail.getStatus().name(), bookingDetail.getStartDate(), bookingDetail.getEndDate())
                 );
-                return new ReservationResponse(details, emptyList());
+                reservationResponse = new ReservationResponse(details, emptyList());
             }
+
+            return reservationResponse;
         } catch (InvalidInputException exception) {
             response.setStatus(HttpStatus.BAD_REQUEST.value());
             return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
@@ -139,7 +170,7 @@ public class ReservationController {
 
     /**
      * reservationUpdateRequest: Assuming we can only modify booking dates but not email or names
-     * @return Reservation response
+     * @return Reservation response with old and new booking information
      */
     @RequestMapping(value = "/modifyReservation", method = RequestMethod.POST)
     @ResponseBody
@@ -150,21 +181,28 @@ public class ReservationController {
         try {
             final DateRange dateRange = parseDateRange(reservationUpdateRequest.getUpdatedStartDate(), reservationUpdateRequest.getUpdatedEndDate());
             validateBookingInformation(reservationUpdateRequest.getBookingId(), reservationUpdateRequest.getEmail());
-            final BookingDetail bookingDetail = bookingService.modifyBooking(reservationUpdateRequest.getBookingId(), reservationUpdateRequest.getEmail(), dateRange);
-            if (bookingDetail == null) {
+            final List<BookingDetail> bookingDetails = bookingService.modifyBooking(reservationUpdateRequest.getBookingId(), reservationUpdateRequest.getEmail(), dateRange);
+
+            ReservationResponse reservationResponse;
+            if (bookingDetails == null) {
                 response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-                return new ReservationResponse(emptyList(), List.of("Unable to modify the booking please try again"));
+
+                reservationResponse = new ReservationResponse(emptyList(), List.of("Unable to modify the booking please try again"));
             } else {
-                final List<ReservationDetail> details = List.of(
-                        new ReservationDetail(bookingDetail.getId(), bookingDetail.getEmail(), bookingDetail.getStatus().name(), bookingDetail.getStartDate(), bookingDetail.getEndDate())
-                );
-                return new ReservationResponse(details, emptyList());
+                final List<ReservationDetail> details = bookingDetails.stream()
+                        .map( bookingDetail -> new ReservationDetail(bookingDetail.getId(), bookingDetail.getEmail(), bookingDetail.getStatus().name(), bookingDetail.getStartDate(), bookingDetail.getEndDate()))
+                        .collect(toList());
+                reservationResponse = new ReservationResponse(details, emptyList());
             }
+
+            return reservationResponse;
         } catch (InvalidInputException exception) {
             response.setStatus(HttpStatus.BAD_REQUEST.value());
+
             return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
         } catch (ReservationException exception) {
             response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+
             return new ReservationResponse(emptyList(), List.of(exception.getMessage()));
         }
     }
@@ -194,7 +232,7 @@ public class ReservationController {
     }
 
     private void validateReservationParameters(String email, String firstName, String lastName) throws InvalidInputException {
-        // Ignoring valid email pattern
+        // Assuming valid email pattern
         if (StringUtils.isEmpty(email) || StringUtils.isEmpty(firstName) || StringUtils.isEmpty(lastName)) {
             throw new InvalidInputException("Need a valid email, firstName and lastName for a booking");
         }

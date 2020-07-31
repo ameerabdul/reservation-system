@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Mock api to represent a booking database api
- * Opted for mocked list to keep things simple, however would loose the reservation information if restart the server.
+ * Opted for mocked list to keep things simple, however this would loose the reservation information if restart the server.
  */
 @Repository
 public class BookingRepository {
@@ -41,7 +41,8 @@ public class BookingRepository {
 
         List<LocalDate> stayDates = getStayDates(dateRange.getStartDate(), dateRange.getEndDate());
         BookingDetail booking;
-        // Synchronize to mimic atomic transaction
+
+        // Synchronize to mimic atomic transaction for a database
         synchronized (this) {
             final boolean isAvailable = isDateRangeAvailable(dateRange);
             if (!isAvailable) {
@@ -62,7 +63,8 @@ public class BookingRepository {
         List<LocalDate> newStayDates = getStayDates(newDateRange.getStartDate(), newDateRange.getEndDate());
         List<LocalDate> oldStayDates = getStayDates(existingBooking.getStartDate(), existingBooking.getEndDate());
         BookingDetail newBooking;
-        // Synchronize to mimic atomic transaction
+
+        // Synchronize to mimic atomic transaction for a database
         synchronized (this) {
             final boolean isAvailable = isDateRangeAvailable(newDateRange);
             if (!isAvailable) {
@@ -82,8 +84,9 @@ public class BookingRepository {
     }
 
     public BookingDetail cancelBooking(BookingDetail existingBooking) {
-        // Synchronize to mimic atomic transaction
         List<LocalDate> stayDates = getStayDates(existingBooking.getStartDate(), existingBooking.getEndDate());
+
+        // Synchronize to mimic atomic transaction for a database
         synchronized (this) {
             existingBooking.setStatus(BookingStatus.CANCELLED);
             bookingRecords.put(existingBooking.getId(), existingBooking); //Updating existing booking
